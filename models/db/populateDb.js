@@ -1,6 +1,5 @@
-#! /usr/bin/env node
-
 const { Client } = require("pg");
+const bcrypt = require("bcrypt");
 const connectionString = process.argv[2];
 
 if (!connectionString) {
@@ -10,39 +9,22 @@ if (!connectionString) {
 }
 
 const SQL = `
-CREATE TABLE IF NOT EXISTS categories (
-  categoryid SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL, 
-  description VARCHAR(255) NOT NULL, 
-  imageURL VARCHAR(255) NOT NULL
+CREATE TABLE IF NOT EXISTS users (
+  userid SERIAL PRIMARY KEY,
+  username VARCHAR(255) NOT NULL, 
+  hashed_password BYTEA NOT NULL, 
+  status VARCHAR(255) NOT NULL DEFAULT 'user',  
+  icon VARCHAR(255) NOT NULL,
+  theme VARCHAR(255) NOT NULL DEFAULT 'darkMode'
 );
 
-CREATE TABLE IF NOT EXISTS games (
-  gameid SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL, 
-  price INT NOT NULL, 
-  platform VARCHAR(255) NOT NULL,
-  description VARCHAR(255) NOT NULL, 
-  imageURL VARCHAR(255) NOT NULL, 
-  categoryid INT REFERENCES categories(categoryid)
+CREATE TABLE IF NOT EXISTS messages (
+  messageid SERIAL PRIMARY KEY,
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  title VARCHAR(255) NOT NULL, 
+  text VARCHAR(255) NOT NULL, 
+  userid INT REFERENCES users(userid)
 );
-
-INSERT INTO categories (name, description, imageURL)
-VALUES
-  ('Horror', 'Games that are creepy and scary', 'https://i.redd.it/zf88ws9jxtmc1.jpeg'),
-  ('FPS', 'Games that require shooting and first person view', 'https://www.greenmangaming.com/blog/wp-content/uploads/2020/04/Titanfall-2-Feature-890x606.png'),
-  ('Gacha', 'Games which contain some form of gambling for characters or weapons', 'https://pbs.twimg.com/media/GPyKRbEW4AAMlaK?format=jpg&name=large'),
-  ('MOBA', 'Games that where you move with a mouse and third person view', 'https://www.esportstalk.com/wp-content/uploads/2020/03/Top-Moba.jpg'),
-  ('Souls' , 'Games that are open World and many boss fights ' , 'https://staticg.sportskeeda.com/editor/2024/01/06aa1-17053339798453-1920.jpg')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO games (name, price, platform, description, imageURL, categoryid)
-VALUES
-  ('Genshin Impact', 0, 'Cross Platform', 'a Gacha Game that is so trash and addictive and bad', 'https://cdn1.epicgames.com/offer/879b0d8776ab46a59a129983ba78f0ce/genshintall_1200x1600-4a5697be3925e8cb1f59725a9830cafc', 3),
-  ('League Of Legend', 0, 'PC', 'A 5V5 Game where u tilt and curse everybody else and alt + F4', 'https://mediaproxy.tvtropes.org/width/1200/https://static.tvtropes.org/pmwiki/pub/images/leagueoflegends.png', 4),
-  ('Elden Ring',60,'Cross Platform' , 'Elden Ring is a 2022 action role-playing game developed by FromSoftware.' , 'https://upload.wikimedia.org/wikipedia/en/thumb/b/b9/Elden_Ring_Box_art.jpg/220px-Elden_Ring_Box_art.jpg',5),
-  ('Call of Duty: Black Ops 6' ,60,'Cross Platform' , 'Call of Duty: Black Ops 6 is a 2024 first-person shooter video game co-developed by Treyarch and Raven Software and published by Activision.','https://upload.wikimedia.org/wikipedia/en/c/c9/Call_of_Duty_Black_Ops_6_Key_Art.png',2),
-  ('Resident Evil 4' ,40, 'Cross Platform' , 'Resident Evil 4 is a 2005 survival horror game developed and published by Capcom for the GameCube.','https://image.api.playstation.com/vulcan/ap/rnd/202210/0706/EVWyZD63pahuh95eKloFaJuC.png',1)
 `;
 
 async function main() {
@@ -53,6 +35,71 @@ async function main() {
   try {
     await client.connect();
     await client.query(SQL);
+    console.log("✅ Database schema created!");
+
+    // Add unique constraint if it doesn't exist
+    try {
+      await client.query(`
+        ALTER TABLE users ADD CONSTRAINT username_unique UNIQUE (username);
+      `);
+      console.log("✅ Added unique constraint on username");
+    } catch (err) {
+      if (err.code === "42P07") {
+        // duplicate_object error code
+        console.log("✅ Unique constraint already exists");
+      } else {
+        throw err;
+      }
+    }
+
+    const saltRounds = 10;
+    const adminPassword = await bcrypt.hash("admin123", saltRounds);
+    const userPassword = await bcrypt.hash("user123", saltRounds);
+    const memberPassword = await bcrypt.hash("member123", saltRounds);
+
+    const userInsertResult = await client.query(
+      `
+      INSERT INTO users (username, hashed_password, status, icon, theme)
+      VALUES 
+        ('admin', $1, 'admin', 'admin.png', 'darkMode'),
+        ('user', $2, 'user', 'user.png', 'lightMode'),
+        ('member', $3, 'member', 'member.png', 'darkMode')
+      ON CONFLICT (username) DO NOTHING
+      RETURNING userid;
+    `,
+      [
+        Buffer.from(adminPassword),
+        Buffer.from(userPassword),
+        Buffer.from(memberPassword),
+      ]
+    );
+    console.log("✅ Sample users created!");
+    if (userInsertResult.rows.length > 0) {
+      let userIds = userInsertResult.rows.map((row) => row.userid);
+      if (userIds.length === 0) {
+        const existingUsers = await client.query(
+          `SELECT userid FROM users WHERE username IN ('admin', 'user', 'member')`
+        );
+        userIds = existingUsers.rows.map((row) => row.userid);
+      }
+      for (const userId of userIds) {
+        await client.query(
+          `INSERT INTO messages (title, text, userid) 
+           VALUES 
+            ($1, $2, $3),
+            ($4, $5, $3)`,
+          [
+            `Welcome from user ${userId}`,
+            `This is a sample message from user ${userId}`,
+            userId,
+            `Second message from user ${userId}`,
+            `Another sample message from user ${userId}`,
+          ]
+        );
+      }
+
+      console.log("✅ Sample messages created!");
+    }
     console.log("✅ Database successfully seeded!");
   } catch (error) {
     console.error("❌ Error seeding database:", error);

@@ -35,8 +35,15 @@ async function editUser(userid, user) {
     throw error;
   }
 }
+async function getUserById(userid) {
+  const { rows } = await pool.query("SELECT * FROM users WHERE userid = $1", [
+    userid,
+  ]);
+  return rows[0];
+}
 module.exports = {
   makeAdmin,
   makeMember,
   editUser,
+  getUserById,
 };

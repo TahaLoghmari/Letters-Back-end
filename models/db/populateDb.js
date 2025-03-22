@@ -78,7 +78,7 @@ async function main() {
       let userIds = userInsertResult.rows.map((row) => row.userid);
       if (userIds.length === 0) {
         const existingUsers = await client.query(
-          `SELECT userid FROM users WHERE username IN ('admin', 'user', 'member')`
+          `SELECT userid FROclassName="cursor-pointer"M users WHERE username IN ('admin', 'user', 'member')`
         );
         userIds = existingUsers.rows.map((row) => row.userid);
       }

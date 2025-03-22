@@ -19,7 +19,7 @@ if (process.env.NODE_ENV === "production") {
     })
   );
 } else {
-  app.use(cors({ origin: "http://localhost:5173" }));
+  app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 }
 
 app.use(session({ secret: "cats", resave: false, saveUninitialized: false }));

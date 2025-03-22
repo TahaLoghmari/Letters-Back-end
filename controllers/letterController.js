@@ -29,11 +29,11 @@ exports.addLetter = async (req, res) => {
 
 exports.deleteLetter = async (req, res) => {
   try {
-    const { rows } = await query.deleteLetter(req.params.messageid);
-    if (!rows) {
+    const result = await query.deleteLetter(req.params.messageid);
+    if (!result) {
       return res.status(404).json({ message: "Letter not found" });
     }
-    res.json(rows);
+    res.json({ success: true, message: "Letter deleted successfully" });
   } catch (error) {
     console.error("Error deleting letter:", error);
     res.status(500).json({ message: "Failed to delete letter" });
@@ -45,12 +45,14 @@ exports.editLetter = async (req, res) => {
     if (!req.body.title && !req.body.text) {
       return res.status(400).json({ message: "Nothing to update" });
     }
-
-    const { rows } = await query.editLetter(req.params.messageid, req.body);
-    if (!rows) {
+    const updatedLetter = await query.editLetter(
+      req.params.messageid,
+      req.body
+    );
+    if (!updatedLetter) {
       return res.status(404).json({ message: "Letter not found" });
     }
-    res.json(rows);
+    res.json(updatedLetter);
   } catch (error) {
     console.error("Error updating letter:", error);
     res.status(500).json({ message: "Failed to update letter" });

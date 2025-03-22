@@ -24,7 +24,6 @@ const verifyUser = async (username, password, done) => {
     return done(error);
   }
 };
-
 module.exports = {
   verifyUser,
 };

@@ -20,5 +20,7 @@ userRouter.put(
   userController.makeAdmin
 );
 userRouter.put("/users/:userid", isAuthenticated, userController.editUser);
+userRouter.get("/users/available", userController.available);
+userRouter.get("/users/:userid", userController.getUserById);
 
 module.exports = userRouter;

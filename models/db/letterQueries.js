@@ -16,7 +16,7 @@ async function deleteLetter(messageid) {
     "DELETE FROM messages WHERE messageid = $1 RETURNING *",
     [messageid]
   );
-  return rows[0];
+  return rows.length > 0 ? rows[0] : null;
 }
 async function editLetter(messageid, letter) {
   const { rows } = await pool.query(

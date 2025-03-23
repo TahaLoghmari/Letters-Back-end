@@ -14,12 +14,31 @@ if (process.env.NODE_ENV === "production") {
     cors({
       origin: process.env.FRONTEND_URL,
       credentials: true,
+      methods: ["GET", "POST", "PUT", "DELETE"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+      exposedHeaders: ["set-cookie"],
     })
   );
 } else {
   app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 }
-
+app.use((req, res, next) => {
+  if (req.path.length > 1 && req.path.endsWith("/")) {
+    const query = req.url.slice(req.path.length);
+    const safePath = req.path.slice(0, -1).replace(/\/+/g, "/");
+    res.redirect(301, safePath + query);
+    return;
+  }
+  next();
+});
+if (process.env.NODE_ENV === "production") {
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    console.log("Auth:", req.isAuthenticated());
+    console.log("Origin:", req.get("origin"));
+    next();
+  });
+}
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "cats",

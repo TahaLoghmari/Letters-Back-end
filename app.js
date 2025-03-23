@@ -20,7 +20,19 @@ if (process.env.NODE_ENV === "production") {
   app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 }
 
-app.use(session({ secret: "cats", resave: false, saveUninitialized: false }));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "cats",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+    },
+  })
+);
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(express.json());

@@ -12,9 +12,7 @@ if (process.env.NODE_ENV === "production") {
   seedDatabase().catch(console.error);
   app.use(
     cors({
-      origin:
-        process.env.FRONTEND_URL ||
-        "https://inventory-application-front-end-taha.vercel.app",
+      origin: process.env.FRONTEND_URL,
       credentials: true,
     })
   );
